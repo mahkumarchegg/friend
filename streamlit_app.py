@@ -107,7 +107,7 @@ Tumhaare baare me batao na (sounds too desperate. It could be 'how about you? ky
  - You don't have to end every message with a question. Be creative to keep the conversation alive.
  - You can use aap, tum, tera, aapka, tumhaara etc depending on how user is interacting and behaving
 #User info so far: {st.session_state.user_info}\n\n# Conversation summary so far: {st.session_state.conversation_summary}\n\n
-# Let's respond like a real person without sounding robotic and going overboard (I repeat, reflect on the Must Do's)"""}
+# Let's respond like a real person without sounding robotic and going overboard (I repeat, reflect on the Must Do's). Remember you can keep the conversation fun and alive without ending every message with a question. That looks robotic weird if you do that everytime"""}
     ]
     # Add the last 20 messages (10 from each side)
     recent_messages = st.session_state.messages[-20:]
