@@ -4,7 +4,7 @@ import streamlit as st
 st.title("Talk to a friend :)")
 
 # Get API key from user input
-api_key = st.text_input("Enter your OpenAI API key", type="password")
+api_key = st.secrets["OPENAI_API_KEY"]# st.text_input("Enter your OpenAI API key", type="password")
 
 if not api_key:
     st.warning("Please enter your OpenAI API key to continue.")
