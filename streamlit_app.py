@@ -39,13 +39,6 @@ def extract_user_info(messages):
     )
     return response.choices[0].message.content
 
-def update_user_info(existing_info, new_info):
-    # Merge new user info with existing info
-    # This is a placeholder; you might want to use a more sophisticated merging strategy
-    if not existing_info:
-        return new_info
-    return {**existing_info, **new_info}
-
 def create_conversation_summary(messages):
     # Create a meaningful summary of the conversation
     conversation = [f"{msg['role']}: {msg['content']}" for msg in messages]
@@ -71,9 +64,8 @@ if prompt := st.chat_input("What is up?"):
 
     # Check if we need to extract user info or create a new summary
     user_message_count = sum(1 for msg in st.session_state.messages if msg["role"] == "user")
-    if user_message_count % 10 == 0:
-        new_user_info = extract_user_info(st.session_state.messages)
-        st.session_state.user_info = update_user_info(st.session_state.user_info, new_user_info)
+    if user_message_count % 5 == 0:
+        st.session_state.user_info = extract_user_info(st.session_state.messages)
         st.session_state.conversation_summary = create_conversation_summary(st.session_state.messages)
 
     # Prepare the messages for the API call
@@ -107,7 +99,7 @@ Tumhaare baare me batao na (sounds too desperate. It could be 'how about you? ky
  - You don't have to end every message with a question. Be creative to keep the conversation alive.
  - You can use aap, tum, tera, aapka, tumhaara etc depending on how user is interacting and behaving
 #User info so far: {st.session_state.user_info}\n\n# Conversation summary so far: {st.session_state.conversation_summary}\n\n
-# Let's respond like a real person without sounding robotic and going overboard (I repeat, reflect on the Must Do's). Remember you can keep the conversation fun and alive without ending every message with a question. That looks robotic weird if you do that everytime"""}
+# Let's respond like a real person without sounding robotic and going overboard (I repeat, reflect on the Must Do's). Remember you can keep the conversation fun and alive without ending every message with a question. That looks robotic and weird if you do that everytime"""}
     ]
     # Add the last 20 messages (10 from each side)
     recent_messages = st.session_state.messages[-20:]
@@ -126,6 +118,6 @@ Tumhaare baare me batao na (sounds too desperate. It could be 'how about you? ky
             st.stop()
     st.session_state.messages.append({"role": "assistant", "content": response})
 
-    # Pop the oldest message if the list exceeds 50 messages
-    if len(st.session_state.messages) > 50:
+    # Pop the oldest message if the list exceeds messages
+    if len(st.session_state.messages) > 45:
         st.session_state.messages.pop(0)
