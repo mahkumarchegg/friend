@@ -1,56 +1,97 @@
-import streamlit as st
 from openai import OpenAI
+import streamlit as st
 
-# Show title and description.
-st.title("💬 Chatbot")
-st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
-)
+st.title("ChatGPT-like clone")
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+# Get API key from user input
+api_key = st.text_input("Enter your OpenAI API key", type="password")
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+if not api_key:
+    st.warning("Please enter your OpenAI API key to continue.")
+    st.stop()
 
-    # Create a session state variable to store the chat messages. This ensures that the
-    # messages persist across reruns.
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+client = OpenAI(api_key=api_key)
 
-    # Display the existing chat messages via `st.chat_message`.
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+if "openai_model" not in st.session_state:
+    st.session_state["openai_model"] = "gpt-3.5-turbo"
 
-    # Create a chat input field to allow the user to enter a message. This will display
-    # automatically at the bottom of the page.
-    if prompt := st.chat_input("What is up?"):
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-        # Store and display the current prompt.
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+if "user_info" not in st.session_state:
+    st.session_state.user_info = {"likes": [], "dislikes": [], "other": []}
 
-        # Generate a response using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        )
+if "conversation_summary" not in st.session_state:
+    st.session_state.conversation_summary = ""
 
-        # Stream the response to the chat using `st.write_stream`, then store it in 
-        # session state.
-        with st.chat_message("assistant"):
+def extract_user_info(messages):
+    # Extract structured user info from the last 10 user messages
+    user_messages = [msg["content"] for msg in messages if msg["role"] == "user"][-10:]
+    # Example logic: Extract likes, dislikes, and other info
+    new_info = {"likes": [], "dislikes": [], "other": []}
+    for msg in user_messages:
+        if "like" in msg.lower():
+            new_info["likes"].append(msg)
+        elif "dislike" in msg.lower():
+            new_info["dislikes"].append(msg)
+        else:
+            new_info["other"].append(msg)
+    return new_info
+
+def update_user_info(existing_info, new_info):
+    # Merge new user info with existing info
+    for key in existing_info:
+        existing_info[key].extend(new_info[key])
+    return existing_info
+
+def create_conversation_summary(messages):
+    # Create a meaningful summary of the conversation
+    conversation = [f"{msg['role']}: {msg['content']}" for msg in messages]
+    summary = " ".join(conversation)
+    # Example: Use OpenAI to generate a concise summary
+    response = client.chat.completions.create(
+        model=st.session_state["openai_model"],
+        messages=[{"role": "system", "content": f"Summarize the following conversation in one sentence: {summary}"}],
+    )
+    return response.choices[0].message.content
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+if prompt := st.chat_input("What is up?"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # Check if we need to extract user info or create a new summary
+    user_message_count = sum(1 for msg in st.session_state.messages if msg["role"] == "user")
+    if user_message_count % 10 == 0:
+        new_user_info = extract_user_info(st.session_state.messages)
+        st.session_state.user_info = update_user_info(st.session_state.user_info, new_user_info)
+        st.session_state.conversation_summary = create_conversation_summary(st.session_state.messages)
+
+    # Prepare the messages for the API call
+    messages_for_api = [
+        {"role": "system", "content": f"You are a helpful assistant. Use the following user info and conversation summary to provide personalized responses. User info: {st.session_state.user_info}. Conversation summary: {st.session_state.conversation_summary}"}
+    ]
+    # Add the last 20 messages (10 from each side)
+    recent_messages = st.session_state.messages[-20:]
+    messages_for_api.extend(recent_messages)
+
+    with st.chat_message("assistant"):
+        try:
+            stream = client.chat.completions.create(
+                model=st.session_state["openai_model"],
+                messages=messages_for_api,
+                stream=True,
+            )
             response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
+            st.stop()
+    st.session_state.messages.append({"role": "assistant", "content": response})
+
+    # Pop the oldest message if the list exceeds 50 messages
+    if len(st.session_state.messages) > 50:
+        st.session_state.messages.pop(0)
