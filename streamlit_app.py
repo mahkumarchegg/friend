@@ -1,7 +1,7 @@
 from openai import OpenAI
 import streamlit as st
 
-st.title("ChatGPT-like clone")
+st.title("Talk to a friend :)")
 
 # Get API key from user input
 api_key = st.text_input("Enter your OpenAI API key", type="password")
