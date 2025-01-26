@@ -13,7 +13,7 @@ if not api_key:
 client = OpenAI(api_key=api_key)
 
 if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = "gpt-3.5-turbo"
+    st.session_state["openai_model"] = "gpt-4o"
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -32,8 +32,9 @@ def extract_user_info(messages):
     response = client.chat.completions.create(
         model=st.session_state["openai_model"],
         messages=[
-            {"role": "system", "content": "Extract and summarize user information from the following messages. Include details like likes, dislikes, job, place, history, etc."},
-            {"role": "user", "content": " ".join(user_messages)}
+            {"role": "system", "content": "Extract and summarize user information from the following messages. It could be ANYTHING (not restricted to user liked, user dislikes, place, name, history, job) which means each and every other info that is worth extracting and remembering like humans do"},
+            {"role": "user", "content": f"# Existing Info: {st.session_state.user_info}"},
+            {"role": "user", "content": "New Messages: " + " ".join(user_messages)}
         ],
     )
     return response.choices[0].message.content
@@ -48,12 +49,14 @@ def update_user_info(existing_info, new_info):
 def create_conversation_summary(messages):
     # Create a meaningful summary of the conversation
     conversation = [f"{msg['role']}: {msg['content']}" for msg in messages]
-    summary = " ".join(conversation)
     
     # Use OpenAI to generate a concise summary
     response = client.chat.completions.create(
         model=st.session_state["openai_model"],
-        messages=[{"role": "system", "content": f"Summarize the following conversation in one sentence: {summary}"}],
+        messages=[
+            {"role": "system", "content": "Given the messages and existing chat summary (which may or may not be present), summarize and update the conversation based on new messages"},
+            {"role": "user", "content": f"Existing Conversation Summary: {st.session_state.conversation_summary}"},
+            {"role": "system", "content": f"""New Messages: {" ".join(conversation)}"""}],
     )
     return response.choices[0].message.content
 
