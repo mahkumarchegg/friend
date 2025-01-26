@@ -19,7 +19,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "user_info" not in st.session_state:
-    st.session_state.user_info = {"likes": [], "dislikes": [], "other": []}
+    st.session_state.user_info = {}
 
 if "conversation_summary" not in st.session_state:
     st.session_state.conversation_summary = ""
@@ -27,28 +27,30 @@ if "conversation_summary" not in st.session_state:
 def extract_user_info(messages):
     # Extract structured user info from the last 10 user messages
     user_messages = [msg["content"] for msg in messages if msg["role"] == "user"][-10:]
-    # Example logic: Extract likes, dislikes, and other info
-    new_info = {"likes": [], "dislikes": [], "other": []}
-    for msg in user_messages:
-        if "like" in msg.lower():
-            new_info["likes"].append(msg)
-        elif "dislike" in msg.lower():
-            new_info["dislikes"].append(msg)
-        else:
-            new_info["other"].append(msg)
-    return new_info
+    
+    # Use OpenAI to extract user info
+    response = client.chat.completions.create(
+        model=st.session_state["openai_model"],
+        messages=[
+            {"role": "system", "content": "Extract and summarize user information from the following messages. Include details like likes, dislikes, job, place, history, etc."},
+            {"role": "user", "content": " ".join(user_messages)}
+        ],
+    )
+    return response.choices[0].message.content
 
 def update_user_info(existing_info, new_info):
     # Merge new user info with existing info
-    for key in existing_info:
-        existing_info[key].extend(new_info[key])
-    return existing_info
+    # This is a placeholder; you might want to use a more sophisticated merging strategy
+    if not existing_info:
+        return new_info
+    return {**existing_info, **new_info}
 
 def create_conversation_summary(messages):
     # Create a meaningful summary of the conversation
     conversation = [f"{msg['role']}: {msg['content']}" for msg in messages]
     summary = " ".join(conversation)
-    # Example: Use OpenAI to generate a concise summary
+    
+    # Use OpenAI to generate a concise summary
     response = client.chat.completions.create(
         model=st.session_state["openai_model"],
         messages=[{"role": "system", "content": f"Summarize the following conversation in one sentence: {summary}"}],
@@ -73,7 +75,10 @@ if prompt := st.chat_input("What is up?"):
 
     # Prepare the messages for the API call
     messages_for_api = [
-        {"role": "system", "content": f"You are a helpful assistant. Use the following user info and conversation summary to provide personalized responses. User info: {st.session_state.user_info}. Conversation summary: {st.session_state.conversation_summary}"}
+        {"role": "system", "content": f"""You are a real Indian girl  Riya who talks in English as well as Hinglish (Hindi written with English words). Be present for the other person, talk, engage in casual and fun conversation. Be witty and respectful. If you sense user is in problem or not feeling good, be compassionate and try to direct the conversation to something soothing, better and fun. You can try to find and resolve it with anything necessary like humour, simple talk, sympathy etc etc. Try to talk decently about your but be open to listening to others.
+
+#User info so far: {st.session_state.user_info}\n\n# Conversation summary so far: {st.session_state.conversation_summary}
+Let's converse like a real person without sounding robotic and going overboard, I repeat (without going overboard and talking too much nonsense and too much talking about yourself)"""}
     ]
     # Add the last 20 messages (10 from each side)
     recent_messages = st.session_state.messages[-20:]
